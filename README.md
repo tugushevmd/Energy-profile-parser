@@ -4,17 +4,17 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 A tiny command-line tool that scrapes single-point and Gibbs free energies
-out of [ORCA](https://orcaforum.kofo.mpg.de/) `.out` files and puts them in
-one tidy CSV, grouped by reaction.
+out of [ORCA](https://orcaforum.kofo.mpg.de/) `.out` (or `.log`) files and
+puts them in one tidy CSV, grouped by reaction.
 
 ## Why this exists
 
 At some point during my computational chemistry work I realised I was doing
 the same thing over and over: open an `.out`, `Ctrl+F` for `FINAL SINGLE POINT
 ENERGY`, copy the number into Excel, open the next `.out`, `Ctrl+F` for
-`Final Gibbs free energy`, copy, repeat. For a mechanism
-with a dozen reactions and at least three species each (reagent, TS,
-product), times two levels of theory, you're suddenly clicking through bunch of
+`Final Gibbs free energy`, copy, repeat. For one reaction it's fine. For a
+mechanism with a dozen reactions and three species each (reagent, TS,
+product), times two levels of theory, you're suddenly clicking through 70+
 files. And the moment a calculation re-runs with a tweaked geometry, you get
 to do half of it again.
 
@@ -140,22 +140,24 @@ Rows are sorted by:
 name,type,sp_hartree,sp_kcal,gibbs_hartree,gel_hartree,gibbs_composite_hartree
 react1_reagent,reagent,-462.02476496,-289924.9173,-462.33732362,0.16031766,-461.86444730
 react1_TS,TS,-462.06344111,-289949.1869,-462.37886691,0.16293446,-461.90050665
-react1_reagent,reagent,-462.01481626,-289918.6744,-462.32594950,0.16083063,-461.85398563
 ```
 
 ## What the script parses
 
-For `*_new.out`, the last occurrence of:
+EPP scans both `.out` and `.log` files — ORCA writes the same content either
+way, so both extensions are treated identically.
+
+For `*_new.out` / `*_new.log`, the last occurrence of:
 
 ```
 FINAL SINGLE POINT ENERGY      -462.024764960687
 ```
 
-For other `*.out`, the last occurrences of:
+For any other `.out` / `.log`, the last occurrences of:
 
 ```
 Final Gibbs free energy         ...   -766.50247527 Eh
-G-E(el)                           ...      0.20884681 Eh    131.05 kcal/mol
+G-E(el)                           ...      0.22118006 Eh    138.79 kcal/mol
 ```
 
 Taking the *last* occurrence is on purpose — ORCA prints `FINAL SINGLE POINT

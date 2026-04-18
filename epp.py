@@ -43,8 +43,10 @@ def parse_gibbs_and_gel(filepath):
 
 
 def get_base_name(filename):
-    """Strip `.out` and any trailing `_new` suffix from a filename."""
-    base = os.path.splitext(os.path.basename(filename))[0]
+    """Strip `.out`/`.log` and any trailing `_new` suffix from a filename."""
+    base, ext = os.path.splitext(os.path.basename(filename))
+    if ext.lower() not in ('.out', '.log'):
+        base = os.path.basename(filename) 
     if base.endswith('_new'):
         base = base[:-4]
     return base
@@ -52,7 +54,7 @@ def get_base_name(filename):
 
 def classify(name):
     """Classify a species by filename: `reagent`, `TS`, `product`, or `other`."""
-    if 'TS' in name: 
+    if 'TS' in name:
         return 'TS'
     low = name.lower()
     if 'reagent' in low or 'reag' in low:
@@ -72,9 +74,12 @@ def reaction_id(name):
 
 
 def scan_folder(folder):
-    """Parse every .out file in `folder`. Returns dict: base_name -> row."""
-    out_files = sorted(glob.glob(os.path.join(folder, "*.out")))
-    print(f"Found {len(out_files)} .out file(s)")
+    """Parse every .out/.log file in `folder`. Returns dict: base_name -> row."""
+    out_files = sorted(
+        glob.glob(os.path.join(folder, "*.out"))
+        + glob.glob(os.path.join(folder, "*.log"))
+    )
+    print(f"Found {len(out_files)} file(s)")
 
     data = {}
     for path in out_files:
@@ -91,7 +96,10 @@ def scan_folder(folder):
                 'gel_hartree': None,
             }
 
-        if fname.endswith('_new.out'):
+        low_name = fname.lower()
+        is_sp = low_name.endswith('_new.out') or low_name.endswith('_new.log')
+
+        if is_sp:
             sp = parse_sp_energy(path)
             if sp is not None:
                 data[base]['sp_hartree'] = sp
@@ -138,8 +146,7 @@ def load_existing_csv(csv_path):
 
 
 def merge(existing, fresh):
-    """Combine previously-saved rows with freshly-parsed rows. Fresh values
-    win, but a fresh None does not overwrite an existing number."""
+    """Combine previously-saved rows with freshly-parsed rows."""
     merged = dict(existing)
     for name, new_row in fresh.items():
         if name in merged:
@@ -163,7 +170,9 @@ def write_csv(csv_path, rows):
         return f"{v:.{prec}f}" if isinstance(v, float) else ''
 
     def composite_gibbs(r):
-        """Returns None if either is missing."""
+        """G^high = E_el^(high SP) + G_corr^(low freq), where G_corr = G - E_el.
+        ORCA's `G-E(el)` is exactly G_corr at the low level, so this reduces
+        to sp_hartree + gel_hartree. Returns None if either is missing."""
         sp = r.get('sp_hartree')
         gel = r.get('gel_hartree')
         if isinstance(sp, float) and isinstance(gel, float):
@@ -193,7 +202,7 @@ def main():
     )
     parser.add_argument(
         'folder', nargs='?',
-        help="Folder containing ORCA .out files. If omitted, you will be prompted."
+        help="Folder containing ORCA .out files."
     )
     parser.add_argument(
         '-o', '--output', default=None,
