@@ -3,47 +3,49 @@
 [![Python](https://img.shields.io/badge/python-3.8%2B-blue.svg)](https://www.python.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-A small, zero-dependency command-line tool for collecting single-point and
-Gibbs free energies from [ORCA](https://orcaforum.kofo.mpg.de/) `.out` files
-into a single CSV table, organised by reaction.
+A tiny command-line tool that scrapes single-point and Gibbs free energies
+out of [ORCA](https://orcaforum.kofo.mpg.de/) `.out` files and puts them in
+one tidy CSV, grouped by reaction.
 
-Designed for the common two-level workflow used when building energy profiles
-for reaction mechanisms: a cheap DFT level for geometry and frequencies, plus
-a higher-level single-point on top. EPP merges both outputs per species,
-classifies species by filename, and computes a composite Gibbs free energy
-on the high-level electronic energy with the low-level thermal correction.
+## Why this exists
 
-## Why
+At some point during my computational chemistry work I realised I was doing
+the same thing over and over: open an `.out`, `Ctrl+F` for `FINAL SINGLE POINT
+ENERGY`, copy the number into Excel, open the next `.out`, `Ctrl+F` for
+`Final Gibbs free energy`, copy, repeat. For a mechanism
+with a dozen reactions and at least three species each (reagent, TS,
+product), times two levels of theory, you're suddenly clicking through bunch of
+files. And the moment a calculation re-runs with a tweaked geometry, you get
+to do half of it again.
 
-When you build a reaction profile you usually run two calculations per
-species:
+So I wrote EPP. Point it at a folder with your ORCA outputs, and it produces
+a CSV where every row is one species, with the single-point energy, the
+Gibbs free energy, and the `G-E(el)` thermal correction all next to each
+other. Rows are sorted so that the reagent, TS and product for each reaction
+sit together — very convenient for eyeballing barriers and reaction energies.
 
-1. **Low-level geometry optimisation + frequency** — produces `Final Gibbs free
-   energy` and `G-E(el)` in the ORCA output.
-2. **High-level single-point** (e.g. DLPNO-CCSD(T)) on the optimised
-   geometry — produces `FINAL SINGLE POINT ENERGY`.
-
-The correctly composed Gibbs free energy is then
+It also computes the composite Gibbs free energy for you, which is the usual
+"correctly combined" number when you use two levels of theory:
 
 ```
 G^high = E_el^(high SP) + G_corr^(low freq)
 ```
 
-where `G_corr = G - E_el` is the purely thermal/entropic correction at the low
-level. ORCA prints this quantity directly as `G-E(el)`, so in practice the
-composition reduces to one addition:
+`G_corr = G - E_el` is the thermal/entropic part from the low-level
+frequency calculation, and ORCA happens to print it directly as `G-E(el)`.
+So in practice this is just one addition:
 
 ```
 gibbs_composite_hartree = sp_hartree + gel_hartree
 ```
 
-EPP automates scraping these values out of dozens of output files and laying
-them out in a CSV where reagent, TS and product for each reaction sit together
-on consecutive rows.
+EPP does this for every row where both values are available.
+
+If this saves you some clicking, great — that was the whole point.
 
 ## Requirements
 
-Python 3.8+. No external dependencies — just the standard library.
+Python 3.8+. No external dependencies, just the standard library.
 
 ## Installation
 
@@ -51,7 +53,7 @@ Clone the repo and run the script directly:
 
 ```bash
 git clone https://github.com/tugushevmd/Energy-profile-parser.git
-cd epp
+cd Energy-profile-parser
 python epp.py --help
 ```
 
@@ -63,18 +65,18 @@ Or copy `epp.py` into your own project folder.
 # Pass the folder as an argument:
 python epp.py /path/to/my/orca/calcs
 
-# Or run interactively (prompts for the folder):
+# Or run interactively (it'll ask for the folder):
 python epp.py
 
 # Write the CSV somewhere other than the default location:
 python epp.py /path/to/my/orca/calcs -o results/epp.csv
 ```
 
-The default output is `energies.csv` inside the scanned folder. Re-running the
-script updates that same CSV in place — previously-extracted values are
-preserved even if the corresponding `.out` file is gone, and newly-completed
-calculations are added. This means you can run EPP while some of your
-calculations are still queued and safely re-run it as more complete.
+By default EPP writes `energies.csv` inside the folder you scanned. Re-run it
+whenever new calculations finish — it updates the same CSV in place and
+keeps any previously-extracted values even if you've since moved or deleted
+the `.out` file. In practice this means you can run EPP while half your jobs
+are still queued, and just re-run it as more complete.
 
 ## Filename conventions
 
@@ -102,10 +104,10 @@ the start of the filename. Examples:
 The `.out` extension and any trailing `_new` are stripped when forming the
 base name used in the CSV, so `X.out` and `X_new.out` share one row.
 
-If your filenames don't follow this convention, rows will still appear in the
-CSV but will be grouped together at the end. To adapt the rules to a different
-naming scheme, edit `classify()` and `reaction_id()` — they're a handful of
-substring checks and one regex.
+If your filenames don't follow this convention, rows will still show up in
+the CSV but everything unrecognised ends up at the bottom as `other`. If you
+name things differently, tweaking `classify()` and `reaction_id()` is a
+one-minute job — they're just a handful of substring checks and one regex.
 
 ## Output
 
@@ -156,10 +158,10 @@ Final Gibbs free energy         ...   -766.50247527 Eh
 G-E(el)                           ...      0.20884681 Eh    131.05 kcal/mol
 ```
 
-Taking the *last* occurrence is deliberate — ORCA prints `FINAL SINGLE POINT
-ENERGY` after every SCF cycle during optimisation, so the final value is the
-one on the converged geometry.
+Taking the *last* occurrence is on purpose — ORCA prints `FINAL SINGLE POINT
+ENERGY` after every SCF cycle during an optimisation, so the last one is the
+one sitting on the converged geometry.
 
 ## License
 
-MIT — see [LICENSE](LICENSE).
+MIT — see [LICENSE](LICENSE). Feel free to use, fork, break, improve.
