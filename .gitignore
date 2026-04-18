@@ -1,0 +1,29 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Distribution / packaging
+build/
+dist/
+*.egg-info/
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# IDEs
+.idea/
+.vscode/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Output of the tool itself (users will typically run it in calc folders,
+# but commit nothing of what it produces in this repo)
+energies.csv
+
+# ORCA output files that might accidentally land in the repo during local testing
+*.out
